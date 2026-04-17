@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workviser — Manager</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .main { padding: 32px 24px; max-width: 1200px; margin: 0 auto; }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        .page-title { font-size: 1.8rem; font-family: var(--font-display); }
+        .page-title span { color: var(--accent); }
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-active);
+            border-radius: var(--radius-lg);
+            padding: 32px; width: 90%; max-width: 500px;
+            transform: translateY(20px); transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal { transform: translateY(0); }
+        .modal-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 24px;
+        }
+        .modal-close {
+            background: none; border: none; color: var(--text-muted);
+            font-size: 20px; cursor: pointer; padding: 4px 8px;
+        }
+        .modal-close:hover { color: var(--text-primary); }
+        .priority-select { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; }
+        .priority-btn {
+            padding: 8px 4px; text-align: center; border-radius: var(--radius);
+            border: 1px solid var(--border); background: var(--bg-secondary);
+            cursor: pointer; font-family: var(--font-mono); font-size: 11px;
+            color: var(--text-muted); transition: all 0.2s;
+        }
+        .priority-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .priority-btn.selected { border-color: var(--accent); background: rgba(245,158,11,0.1); color: var(--accent); }
+        .section-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 16px;
+        }
+        .section-title {
+            font-family: var(--font-display); font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <a class="navbar-brand">Work<span>viser</span></a>
+    <div class="navbar-right">
+        <div class="navbar-user">
+            <strong id="nav-name">Manager</strong>
+            Manager Dashboard
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2 class="page-title">Manager <span>Dashboard</span></h2>
+        <button class="btn btn-primary" onclick="openModal()">
+            + New Task
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-progress">0</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-stuck">0</div>
+            <div class="stat-label">Stuck</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-completed">0</div>
+            <div class="stat-label">Completed</div>
+        </div>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="section-header">
+        <h3 class="section-title">All Tasks</h3>
+        <button class="btn btn-secondary btn-sm" onclick="loadTasks()">Refresh</button>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Assigned To</th>
+                    <th>Priority</th>
+                    <th>Expected</th>
+                    <th>Status</th>
+                    <th>Stuck</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-body">
+                <tr><td colspan="6" class="loader">Loading tasks...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 style="font-family:var(--font-display)">Create New Task</h3>
+            <button class="modal-close" onclick="closeModal()">x</button>
+        </div>
+
+        <div id="modal-alert"></div>
+
+        <div class="form-group">
+            <label class="form-label">Task Title</label>
+            <input type="text" id="task-title" class="form-control" placeholder="Fix login bug">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="task-desc" class="form-control" placeholder="Brief description">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Domain</label>
+            <select id="task-domain" class="form-control">
+                <option value="backend">Backend</option>
+                <option value="frontend">Frontend</option>
+                <option value="devops">DevOps</option>
+                <option value="database">Database</option>
+                <option value="mobile">Mobile</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Priority</label>
+            <div class="priority-select">
+                <div class="priority-btn selected" data-val="1" onclick="selectPriority(1)">1<br>Critical</div>
+                <div class="priority-btn" data-val="2" onclick="selectPriority(2)">2<br>High</div>
+                <div class="priority-btn" data-val="3" onclick="selectPriority(3)">3<br>Medium</div>
+                <div class="priority-btn" data-val="4" onclick="selectPriority(4)">4<br>Low</div>
+                <div class="priority-btn" data-val="5" onclick="selectPriority(5)">5<br>Very Low</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Expected Time (minutes)</label>
+            <input type="number" id="task-time" class="form-control" placeholder="60" min="1">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Assign To</label>
+            <select id="task-employee" class="form-control">
+                <option value="">Loading employees...</option>
+            </select>
+        </div>
+
+        <div style="display:flex;gap:12px">
+            <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" style="flex:1" onclick="createTask()">Create Task</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // Auth check
+    if (!isLoggedIn()) window.location.href = 'index.html';
+    const user = getUser();
+    if (user && user.role !== 'manager') redirectByRole(user.role);
+    if (user) document.getElementById('nav-name').textContent = user.name;
+
+    let selectedPriority = 1;
+
+    function selectPriority(val) {
+        selectedPriority = val;
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.classList.toggle('selected', parseInt(btn.dataset.val) === val);
+        });
+    }
+
+    function openModal() {
+        document.getElementById('modal').classList.add('active');
+        loadEmployees();
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+    }
+
+    function showAlert(id, msg, type='error') {
+        document.getElementById(id).innerHTML =
+            `<div class="alert alert-${type}">${msg}</div>`;
+        setTimeout(() => document.getElementById(id).innerHTML = '', 3000);
+    }
+
+    function getPriorityBadge(p) {
+        const map = {1:'critical',2:'high',3:'medium',4:'low',5:'verylow'};
+        const labels = {1:'Critical',2:'High',3:'Medium',4:'Low',5:'Very Low'};
+        return `<span class="badge badge-${map[p]}">${labels[p]}</span>`;
+    }
+
+    function getStatusBadge(s) {
+        const map = {pending:'pending',in_progress:'progress',completed:'resolved'};
+        const labels = {pending:'Pending',in_progress:'In Progress',completed:'Completed'};
+        return `<span class="badge badge-${map[s]||'pending'}">${labels[s]||s}</span>`;
+    }
+
+    async function loadEmployees() {
+        const res = await api.get('/auth/employees');
+        if (res.ok) {
+            const sel = document.getElementById('task-employee');
+            sel.innerHTML = res.data.map(e =>
+                `<option value="${e.id}">${e.name}</option>`
+            ).join('');
+        }
+    }
+
+    async function loadTasks() {
+        const res = await api.get('/tasks/all');
+        const tbody = document.getElementById('tasks-body');
+
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty">Failed to load tasks</td></tr>`;
+            return;
+        }
+
+        const tasks = res.data.tasks;
+
+        // Update stats
+        document.getElementById('stat-total').textContent = tasks.length;
+        document.getElementById('stat-progress').textContent =
+            tasks.filter(t => t.status === 'in_progress').length;
+        document.getElementById('stat-stuck').textContent =
+            tasks.filter(t => t.is_stuck).length;
+        document.getElementById('stat-completed').textContent =
+            tasks.filter(t => t.status === 'completed').length;
+
+        if (tasks.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty">No tasks yet. Create one!</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = tasks.map(t => `
+            <tr class="fade-in">
+                <td>
+                    <strong style="color:var(--text-primary)">${t.title}</strong>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.domain}</div>
+                </td>
+                <td>${t.assigned_to_name}</td>
+                <td>${getPriorityBadge(t.priority)}</td>
+                <td>${t.expected_time} min</td>
+                <td>${getStatusBadge(t.status)}</td>
+                <td>
+                    ${t.is_stuck
+                        ? '<span style="color:var(--danger);font-size:12px">Stuck</span>'
+                        : '<span style="color:var(--success);font-size:12px">OK</span>'
+                    }
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function createTask() {
+        const title    = document.getElementById('task-title').value;
+        const desc     = document.getElementById('task-desc').value;
+        const domain   = document.getElementById('task-domain').value;
+        const time     = document.getElementById('task-time').value;
+        const employee = document.getElementById('task-employee').value;
+
+        if (!title || !time || !employee) {
+            showAlert('modal-alert', 'Please fill in all required fields');
+            return;
+        }
+
+        const res = await api.post('/tasks/create', {
+            title,
+            description: desc,
+            domain,
+            priority: selectedPriority,
+            expected_time: parseInt(time),
+            assigned_to: employee
+        });
+
+        if (res.ok) {
+            closeModal();
+            showAlert('alert-box', 'Task created successfully', 'success');
+            loadTasks();
+            // Reset form
+            document.getElementById('task-title').value = '';
+            document.getElementById('task-desc').value = '';
+            document.getElementById('task-time').value = '';
+        } else {
+            showAlert('modal-alert', res.data.detail || 'Failed to create task');
+        }
+    }
+
+    function logout() {
+        clearAuth();
+        window.location.href = 'index.html';
+    }
+
+    // Load on start
+    loadTasks();
+    setInterval(loadTasks, 30000); // auto refresh every 30 seconds
+</script>
+</body>
+</html>

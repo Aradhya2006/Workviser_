@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workviser — Leaderboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .main { padding: 32px 24px; max-width: 900px; margin: 0 auto; }
+
+        .page-header {
+            text-align: center; margin-bottom: 48px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-family: var(--font-display);
+            margin-bottom: 8px;
+        }
+
+        .page-title span { color: var(--accent); }
+
+        .page-subtitle {
+            color: var(--text-muted); font-size: 13px;
+        }
+
+        .top-three {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 16px;
+            margin-bottom: 40px;
+            align-items: end;
+        }
+
+        @media(max-width:600px) {
+            .top-three { grid-template-columns: 1fr; }
+        }
+
+        .podium-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .podium-card:hover { border-color: var(--accent); }
+
+        .podium-card.first {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-accent);
+        }
+
+        .podium-rank {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex; align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 1.2rem; font-weight: 800;
+            margin: 0 auto 16px;
+        }
+
+        .podium-name {
+            font-family: var(--font-display);
+            font-size: 1.1rem; font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .podium-domain {
+            font-size: 11px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .podium-points {
+            font-family: var(--font-display);
+            font-size: 2rem; font-weight: 800;
+            color: var(--accent);
+        }
+
+        .podium-points-label {
+            font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .podium-stats {
+            display: flex; gap: 16px;
+            justify-content: center; margin-top: 12px;
+        }
+
+        .podium-stat {
+            text-align: center;
+        }
+
+        .podium-stat-val {
+            font-weight: 600; color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .podium-stat-label {
+            font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .rest-list { }
+
+        .rest-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .rest-item:hover { border-color: var(--accent); }
+
+        .rest-rank {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--bg-hover);
+            color: var(--text-muted);
+            display: flex; align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 700; font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .rest-name {
+            flex: 1;
+        }
+
+        .rest-name h4 {
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            margin-bottom: 2px;
+        }
+
+        .rest-name p {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .rest-stats {
+            display: flex; gap: 24px; align-items: center;
+        }
+
+        .rest-stat { text-align: center; }
+
+        .rest-stat-val {
+            font-family: var(--font-display);
+            font-weight: 700; color: var(--accent);
+            font-size: 1.1rem;
+        }
+
+        .rest-stat-label {
+            font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .section-divider {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 32px 0 16px;
+            position: relative;
+        }
+
+        .section-divider::before, .section-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%; width: 35%;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .section-divider::before { left: 0; }
+        .section-divider::after { right: 0; }
+
+        .back-btn {
+            display: flex; justify-content: center;
+            margin-bottom: 32px;
+        }
+
+        .rating-stars {
+            color: var(--accent);
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <a class="navbar-brand">Work<span>viser</span></a>
+    <div class="navbar-right">
+        <div class="navbar-user">
+            <strong id="nav-name">User</strong>
+            <span id="nav-role">Workviser</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="goBack()">Back</button>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main">
+
+    <div class="page-header">
+        <h1 class="page-title">Expert <span>Leaderboard</span></h1>
+        <p class="page-subtitle">Top experts ranked by points and performance</p>
+    </div>
+
+    <div id="alert-box"></div>
+    <div id="leaderboard-content">
+        <div class="loader">Loading leaderboard...</div>
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (!isLoggedIn()) window.location.href = 'index.html';
+    const user = getUser();
+    if (user) {
+        document.getElementById('nav-name').textContent = user.name;
+        document.getElementById('nav-role').textContent = user.role;
+    }
+
+    function goBack() {
+        if (user) redirectByRole(user.role);
+        else window.location.href = 'index.html';
+    }
+
+    function logout() {
+        clearAuth();
+        window.location.href = 'index.html';
+    }
+
+    function renderStars(rating) {
+        const full = Math.round(rating);
+        return '★'.repeat(full) + '☆'.repeat(5 - full);
+    }
+
+    function renderPodiumCard(expert, rank) {
+        const rankColors = {
+            1: { bg: '#f59e0b', color: '#000' },
+            2: { bg: '#94a3b8', color: '#000' },
+            3: { bg: '#92400e', color: '#fff' }
+        };
+        const rc = rankColors[rank];
+
+        return `
+            <div class="podium-card ${rank === 1 ? 'first' : ''}">
+                <div class="podium-rank" style="background:${rc.bg};color:${rc.color}">
+                    ${rank}
+                </div>
+                <div class="podium-name">${expert.name}</div>
+                <div class="podium-domain">${expert.domain || 'General'}</div>
+                <div class="podium-points">${expert.points}</div>
+                <div class="podium-points-label">Points</div>
+                <div class="podium-stats">
+                    <div class="podium-stat">
+                        <div class="podium-stat-val">${expert.sessions_completed}</div>
+                        <div class="podium-stat-label">Sessions</div>
+                    </div>
+                    <div class="podium-stat">
+                        <div class="podium-stat-val">${renderStars(expert.rating)}</div>
+                        <div class="podium-stat-label">Rating</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function loadLeaderboard() {
+        const res = await api.get('/ratings/leaderboard');
+        const content = document.getElementById('leaderboard-content');
+
+        if (!res || !res.ok) {
+            content.innerHTML = '<div class="empty"><h3>Failed to load leaderboard</h3></div>';
+            return;
+        }
+
+        const experts = res.data.leaderboard;
+
+        if (experts.length === 0) {
+            content.innerHTML = `
+                <div class="empty">
+                    <div class="empty-title">No experts yet</div>
+                    <p>Complete help sessions to appear on the leaderboard.</p>
+                </div>`;
+            return;
+        }
+
+        let html = '';
+
+        // Top 3 podium
+        if (experts.length >= 1) {
+            html += '<div class="top-three">';
+
+            if (experts.length === 1) {
+                html += '<div></div>';
+                html += renderPodiumCard(experts[0], 1);
+                html += '<div></div>';
+            } else if (experts.length === 2) {
+                html += renderPodiumCard(experts[0], 1);
+                html += renderPodiumCard(experts[1], 2);
+                html += '<div></div>';
+            } else {
+                // Show rank 2 first (left), rank 1 center, rank 3 right
+                html += renderPodiumCard(experts[1], 2);
+                html += renderPodiumCard(experts[0], 1);
+                html += renderPodiumCard(experts[2], 3);
+            }
+
+            html += '</div>';
+        }
+
+        // Rest of the list
+        if (experts.length > 3) {
+            html += '<div class="section-divider">Other Experts</div>';
+            html += '<div class="rest-list">';
+
+            experts.slice(3).forEach(expert => {
+                html += `
+                    <div class="rest-item fade-in">
+                        <div class="rest-rank">${expert.rank}</div>
+                        <div class="rest-name">
+                            <h4>${expert.name}</h4>
+                            <p>${expert.domain || 'General'}</p>
+                        </div>
+                        <div class="rest-stats">
+                            <div class="rest-stat">
+                                <div class="rest-stat-val">${expert.points}</div>
+                                <div class="rest-stat-label">Points</div>
+                            </div>
+                            <div class="rest-stat">
+                                <div class="rest-stat-val">${expert.sessions_completed}</div>
+                                <div class="rest-stat-label">Sessions</div>
+                            </div>
+                            <div class="rest-stat">
+                                <div class="rest-stat-val rating-stars">
+                                    ${renderStars(expert.rating)}
+                                </div>
+                                <div class="rest-stat-label">Rating</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        content.innerHTML = html;
+    }
+
+    loadLeaderboard();
+</script>
+</body>
+</html>

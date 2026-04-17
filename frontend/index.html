@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workviser — Login</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-page::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%);
+            top: -100px;
+            right: -100px;
+            pointer-events: none;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            padding: 24px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-logo h1 {
+            font-size: 2.8rem;
+            color: var(--accent);
+            letter-spacing: -2px;
+        }
+
+        .login-logo h1 span { color: var(--text-primary); }
+
+        .login-logo p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+        }
+
+        .login-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: var(--radius);
+        }
+
+        .login-tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            font-family: var(--font-mono);
+        }
+
+        .login-tab.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .divider {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .divider::before { left: 0; }
+        .divider::after  { right: 0; }
+    </style>
+</head>
+<body>
+<div class="login-page">
+    <div class="login-box">
+        <div class="login-logo">
+            <h1>Work<span>viser</span></h1>
+            <p>Smart team productivity platform</p>
+        </div>
+
+        <div class="login-card">
+            <div class="login-tabs">
+                <button class="login-tab active" onclick="switchTab('login')">Login</button>
+                <button class="login-tab" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <!-- LOGIN TAB -->
+            <div id="tab-login" class="tab-content active">
+                <div id="login-alert"></div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="login-email" class="form-control" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="••••••••">
+                </div>
+                <button class="btn btn-primary btn-full" onclick="handleLogin()">
+                    Login
+                </button>
+            </div>
+
+            <!-- REGISTER TAB -->
+            <div id="tab-register" class="tab-content">
+                <div id="register-alert"></div>
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="reg-name" class="form-control" placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="reg-email" class="form-control" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="reg-password" class="form-control" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select id="reg-role" class="form-control" onchange="toggleDomain()">
+                        <option value="">Select role</option>
+                        <option value="manager">Manager</option>
+                        <option value="employee">Employee</option>
+                        <option value="expert">Expert</option>
+                    </select>
+                </div>
+                <div class="form-group" id="domain-group" style="display:none">
+                    <label class="form-label">Domain</label>
+                    <select id="reg-domain" class="form-control">
+                        <option value="backend">Backend</option>
+                        <option value="frontend">Frontend</option>
+                        <option value="devops">DevOps</option>
+                        <option value="database">Database</option>
+                        <option value="mobile">Mobile</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="handleRegister()">
+                    Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // Redirect if already logged in
+    if (isLoggedIn()) {
+        const user = getUser();
+        if (user) redirectByRole(user.role);
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.login-tab').forEach((t, i) => {
+            t.classList.toggle('active', (i === 0) === (tab === 'login'));
+        });
+        document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+        document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    }
+
+    function toggleDomain() {
+        const role = document.getElementById('reg-role').value;
+        document.getElementById('domain-group').style.display =
+            role === 'expert' ? 'block' : 'none';
+    }
+
+    function showAlert(id, message, type = 'error') {
+        document.getElementById(id).innerHTML =
+            `<div class="alert alert-${type}">${message}</div>`;
+    }
+
+    async function handleLogin() {
+        const email    = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        if (!email || !password) {
+            showAlert('login-alert', 'Please fill in all fields');
+            return;
+        }
+
+        const res = await api.post('/auth/login', { email, password });
+
+        if (res.ok) {
+            saveAuth(res.data.token, res.data.user);
+            redirectByRole(res.data.user.role);
+        } else {
+            showAlert('login-alert', res.data.detail || 'Login failed');
+        }
+    }
+
+    async function handleRegister() {
+        const name     = document.getElementById('reg-name').value;
+        const email    = document.getElementById('reg-email').value;
+        const password = document.getElementById('reg-password').value;
+        const role     = document.getElementById('reg-role').value;
+        const domain   = document.getElementById('reg-domain').value;
+
+        if (!name || !email || !password || !role) {
+            showAlert('register-alert', 'Please fill in all fields');
+            return;
+        }
+
+        const body = { name, email, password, role };
+        if (role === 'expert') body.domain = domain;
+
+        const res = await api.post('/auth/register', body);
+
+        if (res.ok) {
+            saveAuth(res.data.token, res.data.user);
+            redirectByRole(res.data.user.role);
+        } else {
+            showAlert('register-alert', res.data.detail || 'Registration failed');
+        }
+    }
+
+    // Allow Enter key to login
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+</script>
+</body>
+</html>

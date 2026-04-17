@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workviser — Expert</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .main { padding: 32px 24px; max-width: 1200px; margin: 0 auto; }
+        .page-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 32px;
+        }
+        .page-title { font-size: 1.8rem; font-family: var(--font-display); }
+        .page-title span { color: var(--accent); }
+
+        .queue-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .queue-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-accent);
+        }
+
+        .queue-card-header {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; margin-bottom: 16px;
+            gap: 16px;
+        }
+
+        .queue-card-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem; font-weight: 700;
+            color: var(--text-primary); margin-bottom: 6px;
+        }
+
+        .queue-card-meta {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+
+        .priority-score {
+            font-family: var(--font-display);
+            font-size: 1.8rem; font-weight: 800;
+            color: var(--accent); text-align: right;
+            white-space: nowrap;
+        }
+
+        .priority-score-label {
+            font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase; text-align: right;
+        }
+
+        .employee-text {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--accent);
+            padding: 12px 16px;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            font-size: 13px; color: var(--text-secondary);
+            margin-bottom: 16px; font-style: italic;
+        }
+
+        .briefing-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px; margin-bottom: 16px;
+        }
+
+        .briefing-title {
+            font-size: 11px; font-weight: 600;
+            color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 8px;
+        }
+
+        .briefing-text {
+            font-size: 13px; color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .briefing-list {
+            list-style: none; margin-top: 8px;
+        }
+
+        .briefing-list li {
+            font-size: 12px; color: var(--text-secondary);
+            padding: 4px 0; padding-left: 16px;
+            position: relative;
+        }
+
+        .briefing-list li::before {
+            content: '→';
+            position: absolute; left: 0;
+            color: var(--accent);
+        }
+
+        .queue-actions {
+            display: flex; gap: 12px; margin-top: 16px;
+        }
+
+        .empty-queue {
+            text-align: center; padding: 64px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .empty-queue h3 {
+            font-family: var(--font-display);
+            font-size: 1.4rem; color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .tab-nav {
+            display: flex; gap: 8px; margin-bottom: 24px;
+            background: var(--bg-secondary);
+            padding: 4px; border-radius: var(--radius);
+            width: fit-content;
+        }
+
+        .tab-btn {
+            padding: 8px 20px; border-radius: 6px;
+            border: none; background: none;
+            font-family: var(--font-mono); font-size: 13px;
+            color: var(--text-muted); cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .rating-form {
+            display: none; margin-top: 12px;
+            padding: 16px; background: var(--bg-secondary);
+            border-radius: var(--radius);
+        }
+        .rating-form.visible { display: block; }
+
+        .star-rating {
+            display: flex; gap: 8px; margin-bottom: 12px;
+        }
+
+        .star {
+            font-size: 24px; cursor: pointer;
+            color: var(--text-muted); transition: color 0.2s;
+        }
+        .star.active { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <a class="navbar-brand">Work<span>viser</span></a>
+    <div class="navbar-right">
+        <a href="leaderboard.html" class="btn btn-secondary btn-sm">Leaderboard</a>
+        <div class="navbar-user">
+            <strong id="nav-name">Expert</strong>
+            <span id="nav-domain">Expert Dashboard</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main">
+    <div class="page-header">
+        <h2 class="page-title">Expert <span>Dashboard</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadQueue()">Refresh</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-points">0</div>
+            <div class="stat-label">Points</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-rating">0.0</div>
+            <div class="stat-label">Rating</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-sessions">0</div>
+            <div class="stat-label">Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-queue">0</div>
+            <div class="stat-label">In Queue</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('queue')">Help Queue</button>
+        <button class="tab-btn" onclick="switchTab('history')">My History</button>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <!-- Queue Tab -->
+    <div id="tab-queue" class="tab-content active">
+        <div id="queue-list">
+            <div class="loader">Loading queue...</div>
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="tab-history" class="tab-content">
+        <div id="history-list">
+            <div class="loader">Loading history...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (!isLoggedIn()) window.location.href = 'index.html';
+    const user = getUser();
+    if (user && user.role !== 'expert') redirectByRole(user.role);
+    if (user) {
+        document.getElementById('nav-name').textContent = user.name;
+        document.getElementById('nav-domain').textContent =
+            user.domain ? `Expert · ${user.domain}` : 'Expert Dashboard';
+    }
+
+    let selectedStars = 0;
+
+    function showAlert(id, msg, type='error') {
+        document.getElementById(id).innerHTML =
+            `<div class="alert alert-${type}">${msg}</div>`;
+        setTimeout(() => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        }, 4000);
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', (i === 0) === (tab === 'queue'));
+        });
+        document.getElementById('tab-queue').classList.toggle('active', tab === 'queue');
+        document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+
+        if (tab === 'history') loadHistory();
+    }
+
+    function getPriorityBadge(p) {
+        const map = {1:'critical',2:'high',3:'medium',4:'low',5:'verylow'};
+        const labels = {1:'Critical',2:'High',3:'Medium',4:'Low',5:'Very Low'};
+        return `<span class="badge badge-${map[p]}">${labels[p]}</span>`;
+    }
+
+    function renderEmotions(emotions) {
+        if (!emotions || Object.keys(emotions).length === 0) return '';
+        return Object.entries(emotions).map(([label, score]) => `
+            <div class="emotion-row" style="margin-bottom:6px">
+                <span class="emotion-label">${label}</span>
+                <div class="emotion-bar">
+                    <div class="emotion-bar-fill" style="width:${score*100}%"></div>
+                </div>
+                <span class="emotion-score">${Math.round(score*100)}%</span>
+            </div>
+        `).join('');
+    }
+
+    function renderBriefing(briefing) {
+        if (!briefing) return '';
+
+        let html = `<div class="briefing-section">
+            <div class="briefing-title">AI Briefing</div>`;
+
+        if (briefing.summary) {
+            html += `<div class="briefing-text">${briefing.summary}</div>`;
+        }
+
+        if (briefing.possible_causes && briefing.possible_causes.length > 0) {
+            html += `<div class="briefing-title" style="margin-top:12px">Possible Causes</div>
+                <ul class="briefing-list">
+                    ${briefing.possible_causes.map(c => `<li>${c}</li>`).join('')}
+                </ul>`;
+        }
+
+        if (briefing.suggested_steps && briefing.suggested_steps.length > 0) {
+            html += `<div class="briefing-title" style="margin-top:12px">Suggested Steps</div>
+                <ul class="briefing-list">
+                    ${briefing.suggested_steps.map(s => `<li>${s}</li>`).join('')}
+                </ul>`;
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    async function loadQueue() {
+        const res = await api.get('/help/queue');
+        const listEl = document.getElementById('queue-list');
+        const statEl = document.getElementById('stat-queue');
+
+        if (!res || !res.ok) {
+            listEl.innerHTML = '<div class="empty-queue"><h3>Failed to load queue</h3></div>';
+            return;
+        }
+
+        const queue = res.data.queue;
+        statEl.textContent = queue.length;
+
+        if (queue.length === 0) {
+            listEl.innerHTML = `
+                <div class="empty-queue">
+                    <h3>Queue is Empty</h3>
+                    <p style="color:var(--text-muted);font-size:13px">
+                        No help requests at the moment.
+                    </p>
+                </div>`;
+            return;
+        }
+
+        listEl.innerHTML = queue.map(req => `
+            <div class="queue-card fade-in" id="card-${req.id}">
+                <div class="queue-card-header">
+                    <div>
+                        <div class="queue-card-title">${req.task_title}</div>
+                        <div class="queue-card-meta">
+                            ${getPriorityBadge(req.task_priority)}
+                            <span class="badge badge-pending">${req.task_domain}</span>
+                            <span class="badge" style="background:rgba(148,163,184,0.1);color:#94a3b8">
+                                ${req.time_spent.toFixed(1)} min stuck
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="priority-score">${req.priority_score.toFixed(0)}</div>
+                        <div class="priority-score-label">Priority Score</div>
+                    </div>
+                </div>
+
+                ${req.employee_text ? `
+                    <div class="employee-text">
+                        "${req.employee_text}"
+                        <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">
+                            — ${req.employee_name}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${Object.keys(req.detected_emotions || {}).length > 0 ? `
+                    <div style="margin-bottom:16px">
+                        <div class="briefing-title">Detected Emotions</div>
+                        <div class="emotion-bars" style="margin-top:8px">
+                            ${renderEmotions(req.detected_emotions)}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${renderBriefing(req.claude_briefing)}
+
+                <div class="queue-actions">
+                    <button class="btn btn-primary" onclick="acceptRequest('${req.id}')">
+                        Accept Help Request
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function acceptRequest(requestId) {
+        const res = await api.post(`/help/${requestId}/accept`, {});
+
+        if (res.ok) {
+            showAlert('alert-box', 'Help request accepted', 'success');
+
+            const card = document.getElementById(`card-${requestId}`);
+            if (card) {
+                card.querySelector('.queue-actions').innerHTML = `
+                    <button class="btn btn-success"
+                        onclick="resolveRequest('${requestId}')">
+                        Mark as Resolved
+                    </button>
+                `;
+                card.style.borderColor = 'var(--success)';
+            }
+
+            loadUserStats();
+        } else {
+            showAlert('alert-box', res.data.detail || 'Failed to accept request');
+        }
+    }
+
+    async function resolveRequest(requestId) {
+        const res = await api.post(`/help/${requestId}/resolve`, {});
+
+        if (res.ok) {
+            showAlert('alert-box', 'Session resolved successfully', 'success');
+
+            const card = document.getElementById(`card-${requestId}`);
+            if (card) {
+                card.querySelector('.queue-actions').innerHTML = `
+                    <div style="color:var(--success);font-size:13px">
+                        Session resolved. Employee will rate you shortly.
+                    </div>
+                `;
+                card.style.borderColor = 'var(--text-muted)';
+                card.style.opacity = '0.6';
+            }
+
+            loadUserStats();
+        } else {
+            showAlert('alert-box', res.data.detail || 'Failed to resolve request');
+        }
+    }
+
+    async function loadHistory() {
+        const res = await api.get('/ratings/my-ratings');
+        const listEl = document.getElementById('history-list');
+
+        if (!res || !res.ok) {
+            listEl.innerHTML = '<div class="empty-queue"><h3>No history yet</h3></div>';
+            return;
+        }
+
+        const ratings = res.data.ratings;
+
+        if (ratings.length === 0) {
+            listEl.innerHTML = `
+                <div class="empty-queue">
+                    <h3>No Ratings Yet</h3>
+                    <p style="color:var(--text-muted);font-size:13px">
+                        Complete help sessions to receive ratings.
+                    </p>
+                </div>`;
+            return;
+        }
+
+        listEl.innerHTML = ratings.map(r => `
+            <div class="queue-card fade-in">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div class="queue-card-title">Session Rating</div>
+                        <div style="font-size:12px;color:var(--text-muted)">
+                            From: ${r.employee_name}
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="stars">${'★'.repeat(Math.round(r.stars))}${'☆'.repeat(5-Math.round(r.stars))}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">${r.stars}/5</div>
+                    </div>
+                </div>
+                ${r.comment ? `
+                    <div class="employee-text" style="margin-top:12px">
+                        "${r.comment}"
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    async function loadUserStats() {
+        const res = await api.get('/auth/me');
+        if (res && res.ok) {
+            document.getElementById('stat-points').textContent = res.data.points;
+            document.getElementById('stat-rating').textContent =
+                res.data.rating.toFixed(1);
+            document.getElementById('stat-sessions').textContent =
+                res.data.sessions_completed;
+        }
+    }
+
+    function logout() {
+        clearAuth();
+        window.location.href = 'index.html';
+    }
+
+    loadQueue();
+    loadUserStats();
+    setInterval(loadQueue, 30000);
+</script>
+</body>
+</html>

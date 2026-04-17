@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workviser — Employee</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .main { padding: 32px 24px; max-width: 1200px; margin: 0 auto; }
+        .page-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 32px;
+        }
+        .page-title { font-size: 1.8rem; font-family: var(--font-display); }
+        .page-title span { color: var(--accent); }
+
+        .task-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        @media(max-width:768px) { .task-grid { grid-template-columns: 1fr; } }
+
+        .active-task {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            transition: border-color 0.3s;
+        }
+        .active-task.stuck { border-color: var(--danger); box-shadow: 0 0 24px rgba(239,68,68,0.1); }
+        .active-task.warning { border-color: #f97316; box-shadow: 0 0 24px rgba(249,115,22,0.1); }
+
+        .task-name {
+            font-family: var(--font-display);
+            font-size: 1.4rem; font-weight: 700;
+            margin-bottom: 8px; color: var(--text-primary);
+        }
+
+        .task-meta {
+            display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+        }
+
+        .timer-label {
+            text-align: center; font-size: 11px;
+            color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 8px;
+        }
+
+        .timer-stats {
+            display: flex; justify-content: space-between;
+            margin-top: 12px; font-size: 12px; color: var(--text-muted);
+        }
+
+        .task-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+        .text-input-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+        }
+
+        .emotion-result {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            display: none;
+        }
+
+        .emotion-result.visible { display: block; }
+
+        .no-task {
+            text-align: center; padding: 64px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .no-task h3 {
+            font-family: var(--font-display);
+            font-size: 1.4rem; color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .tasks-list { margin-top: 24px; }
+        .task-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: border-color 0.2s;
+        }
+        .task-item:hover { border-color: var(--accent); }
+        .task-item-left h4 { color: var(--text-primary); margin-bottom: 4px; }
+        .task-item-left p { font-size: 12px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <a class="navbar-brand">Work<span>viser</span></a>
+    <div class="navbar-right">
+        <a href="leaderboard.html" class="btn btn-secondary btn-sm">Leaderboard</a>
+        <div class="navbar-user">
+            <strong id="nav-name">Employee</strong>
+            Employee Dashboard
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main">
+    <div class="page-header">
+        <h2 class="page-title">Employee <span>Dashboard</span></h2>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <!-- Active Task Section -->
+    <div id="active-section">
+        <div class="loader">Loading your tasks...</div>
+    </div>
+
+    <!-- All Tasks -->
+    <div class="tasks-list">
+        <h3 style="font-family:var(--font-display);margin-bottom:16px;color:var(--text-secondary)">
+            All My Tasks
+        </h3>
+        <div id="tasks-list"></div>
+    </div>
+</div>
+
+<!-- Help Popup -->
+<div class="popup-overlay" id="help-popup">
+    <div class="popup">
+        <div class="popup-title">Need Help?</div>
+        <div class="popup-text">
+            You have spent more time than expected on this task.
+            Would you like to request help from an expert?
+        </div>
+        <div class="form-group">
+            <label class="form-label">Describe what you are stuck on</label>
+            <textarea id="popup-text" class="form-control" rows="3"
+                placeholder="I cannot figure out why..."></textarea>
+        </div>
+        <div id="popup-alert"></div>
+        <div class="popup-actions">
+            <button class="btn btn-secondary" style="flex:1" onclick="dismissPopup()">
+                Not Now
+            </button>
+            <button class="btn btn-primary" style="flex:1" onclick="requestHelp()">
+                Request Help
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // Auth check
+    if (!isLoggedIn()) window.location.href = 'index.html';
+    const user = getUser();
+    if (user && user.role !== 'employee') redirectByRole(user.role);
+    if (user) document.getElementById('nav-name').textContent = user.name;
+
+    let activeTask = null;
+    let timerInterval = null;
+    let stuckCheckInterval = null;
+    let popupShown = false;
+    let analyzeInterval = null;
+
+    function showAlert(id, msg, type='error') {
+        document.getElementById(id).innerHTML =
+            `<div class="alert alert-${type}">${msg}</div>`;
+        setTimeout(() => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        }, 4000);
+    }
+
+    function getPriorityBadge(p) {
+        const map = {1:'critical',2:'high',3:'medium',4:'low',5:'verylow'};
+        const labels = {1:'Critical',2:'High',3:'Medium',4:'Low',5:'Very Low'};
+        return `<span class="badge badge-${map[p]}">${labels[p]}</span>`;
+    }
+
+    function getStatusBadge(s) {
+        const map = {pending:'pending',in_progress:'progress',completed:'resolved'};
+        const labels = {pending:'Pending',in_progress:'In Progress',completed:'Completed'};
+        return `<span class="badge badge-${map[s]||'pending'}">${labels[s]||s}</span>`;
+    }
+
+    function formatTime(minutes) {
+        const h = Math.floor(minutes / 60);
+        const m = Math.floor(minutes % 60);
+        const s = Math.floor((minutes * 60) % 60);
+        return h > 0
+            ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+            : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function startTimer(task) {
+        if (timerInterval) clearInterval(timerInterval);
+
+        const startedAt = new Date(task.started_at + 'Z');
+        const expectedMs = task.expected_time * 60 * 1000;
+
+        function tick() {
+            const now = new Date();
+            const elapsed = now - startedAt;
+            const elapsedMin = elapsed / 60000;
+            const percentage = Math.min((elapsed / expectedMs) * 100, 125);
+
+            const display = document.getElementById('timer-display');
+            const fill = document.getElementById('timer-fill');
+            const pct = document.getElementById('timer-pct');
+
+            if (!display) return;
+
+            display.textContent = formatTime(elapsedMin);
+
+            if (percentage >= 125) {
+                display.className = 'timer-display danger';
+                fill.className = 'timer-bar-fill danger';
+            } else if (percentage >= 100) {
+                display.className = 'timer-display warning';
+                fill.className = 'timer-bar-fill warning';
+            } else {
+                display.className = 'timer-display';
+                fill.className = 'timer-bar-fill';
+            }
+
+            fill.style.width = Math.min(percentage, 100) + '%';
+            if (pct) pct.textContent = percentage.toFixed(1) + '% of expected time';
+        }
+
+        tick();
+        timerInterval = setInterval(tick, 1000);
+    }
+
+    function startStuckCheck(taskId) {
+        if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+
+        stuckCheckInterval = setInterval(async () => {
+            const res = await api.get(`/tasks/${taskId}/stuck-check`);
+            if (res && res.ok) {
+                const info = res.data;
+                const taskEl = document.getElementById('active-task-card');
+
+                if (info.is_stuck && !popupShown) {
+                    popupShown = true;
+                    showHelpPopup();
+                    if (taskEl) taskEl.className = 'active-task stuck';
+                } else if (info.should_warn) {
+                    if (taskEl) taskEl.className = 'active-task warning';
+                }
+            }
+        }, 30000);
+    }
+
+    function showHelpPopup() {
+        document.getElementById('help-popup').classList.add('active');
+    }
+
+    function dismissPopup() {
+        document.getElementById('help-popup').classList.remove('active');
+    }
+
+    async function requestHelp() {
+        if (!activeTask) return;
+
+        const text = document.getElementById('popup-text').value;
+
+        if (!text.trim()) {
+            showAlert('popup-alert', 'Please describe what you are stuck on');
+            return;
+        }
+
+        const res = await api.post('/help/request', {
+            task_id: activeTask.id,
+            employee_text: text
+        });
+
+        if (res.ok) {
+            dismissPopup();
+            showAlert('alert-box',
+                `Help requested. Expert assigned: ${res.data.expert_assigned}`,
+                'success'
+            );
+        } else {
+            showAlert('popup-alert', res.data.detail || 'Failed to request help');
+        }
+    }
+
+    async function startTask(taskId) {
+        const res = await api.post(`/tasks/${taskId}/start`, {});
+        if (res.ok) {
+            showAlert('alert-box', 'Task started', 'success');
+            loadTasks();
+        } else {
+            showAlert('alert-box', res.data.detail || 'Failed to start task');
+        }
+    }
+
+    async function completeTask(taskId) {
+        const res = await api.post(`/tasks/${taskId}/complete`, {});
+        if (res.ok) {
+            showAlert('alert-box', 'Task completed', 'success');
+            if (timerInterval) clearInterval(timerInterval);
+            if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+            activeTask = null;
+            loadTasks();
+        } else {
+            showAlert('alert-box', res.data.detail || 'Failed to complete task');
+        }
+    }
+
+    async function analyzeText() {
+        const text = document.getElementById('work-text').value;
+        if (!text.trim()) return;
+
+        const res = await api.post('/analyze/text', { text });
+        if (res.ok) {
+            const emotions = res.data.emotions;
+            const resultEl = document.getElementById('emotion-result');
+            const barsEl = document.getElementById('emotion-bars');
+
+            resultEl.classList.add('visible');
+
+            if (Object.keys(emotions).length === 0) {
+                barsEl.innerHTML = '<p style="color:var(--text-muted);font-size:12px">No strong emotions detected</p>';
+                return;
+            }
+
+            barsEl.innerHTML = Object.entries(emotions).map(([label, score]) => `
+                <div class="emotion-row">
+                    <span class="emotion-label">${label}</span>
+                    <div class="emotion-bar">
+                        <div class="emotion-bar-fill" style="width:${score*100}%"></div>
+                    </div>
+                    <span class="emotion-score">${Math.round(score*100)}%</span>
+                </div>
+            `).join('');
+
+            if (res.data.needs_help && !popupShown && activeTask) {
+                popupShown = true;
+                showHelpPopup();
+            }
+        }
+    }
+
+    function renderActiveTask(task) {
+        activeTask = task;
+        const section = document.getElementById('active-section');
+
+        section.innerHTML = `
+            <div class="task-grid">
+                <div class="active-task" id="active-task-card">
+                    <div class="card-title">Active Task</div>
+                    <div class="task-name">${task.title}</div>
+                    <div class="task-meta">
+                        ${getPriorityBadge(task.priority)}
+                        <span class="badge badge-progress">${task.domain}</span>
+                    </div>
+
+                    <div class="timer-label">Time Elapsed</div>
+                    <div class="timer-display" id="timer-display">00:00</div>
+                    <div class="timer-bar">
+                        <div class="timer-bar-fill" id="timer-fill" style="width:0%"></div>
+                    </div>
+                    <div class="timer-stats">
+                        <span id="timer-pct">0% of expected time</span>
+                        <span>Expected: ${task.expected_time} min</span>
+                    </div>
+
+                    <div class="task-actions">
+                        <button class="btn btn-success btn-sm" onclick="completeTask('${task.id}')">
+                            Mark Complete
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="showHelpPopup()">
+                            Request Help
+                        </button>
+                    </div>
+                </div>
+
+                <div class="text-input-card">
+                    <div class="card-title">How are you feeling?</div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">
+                        Tell us what you are working on. Our AI will detect if you need help.
+                    </p>
+                    <textarea id="work-text" class="form-control" rows="4"
+                        placeholder="I am trying to fix the authentication issue..."
+                        oninput="scheduleAnalyze()"></textarea>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%"
+                        onclick="analyzeText()">
+                        Analyze
+                    </button>
+                    <div class="emotion-result" id="emotion-result">
+                        <div class="card-title" style="margin-bottom:12px">Detected Emotions</div>
+                        <div class="emotion-bars" id="emotion-bars"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        startTimer(task);
+        startStuckCheck(task.id);
+    }
+
+    let analyzeTimeout = null;
+    function scheduleAnalyze() {
+        if (analyzeTimeout) clearTimeout(analyzeTimeout);
+        analyzeTimeout = setTimeout(analyzeText, 3000);
+    }
+
+    async function loadTasks() {
+        const res = await api.get('/tasks/my-tasks');
+        if (!res || !res.ok) return;
+
+        const tasks = res.data.tasks;
+        const inProgress = tasks.find(t => t.status === 'in_progress');
+        const section = document.getElementById('active-section');
+        const listEl = document.getElementById('tasks-list');
+
+        if (inProgress) {
+            renderActiveTask(inProgress);
+        } else {
+            if (timerInterval) clearInterval(timerInterval);
+            if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+            activeTask = null;
+            section.innerHTML = `
+                <div class="no-task">
+                    <h3>No Active Task</h3>
+                    <p style="color:var(--text-muted);font-size:13px">
+                        Start a task below to begin tracking your time.
+                    </p>
+                </div>
+            `;
+        }
+
+        // Render all tasks list
+        const pending = tasks.filter(t => t.status !== 'in_progress');
+        if (pending.length === 0) {
+            listEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No other tasks.</p>';
+            return;
+        }
+
+        listEl.innerHTML = pending.map(t => `
+            <div class="task-item fade-in">
+                <div class="task-item-left">
+                    <h4>${t.title}</h4>
+                    <p>${t.domain} · Expected: ${t.expected_time} min</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    ${getPriorityBadge(t.priority)}
+                    ${getStatusBadge(t.status)}
+                    ${t.status === 'pending'
+                        ? `<button class="btn btn-primary btn-sm"
+                            onclick="startTask('${t.id}')">Start</button>`
+                        : ''
+                    }
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function logout() {
+        clearAuth();
+        window.location.href = 'index.html';
+    }
+
+    loadTasks();
+</script>
+</body>
+</html>
