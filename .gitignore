@@ -24,3 +24,10 @@ __pycache__/
 ml/saved_model/
 ml/saved_model.zip
 ml/dataset/
+
+
+ml/dataset/
+ml/saved_model/
+ml/*.zip
+__pycache__/
+*.pyc
